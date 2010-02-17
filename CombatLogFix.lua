@@ -45,12 +45,11 @@ function LogFixer:PLAYER_REGEN_ENABLED()
 	CombatLogClearEntries()
 end
 
--- When the cast is sent, we expect some sort of combat log event within the next 5 seconds
--- in reality, this is more like <2 seconds but I'm being not very strict right now
+-- When the cast is sent, we expect some sort of combat log event within the next 2
 function LogFixer:UNIT_SPELLCAST_SENT(event, unit)
 	if( unit == "player" ) then
 		frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-		frame.timeout = 5
+		frame.timeout = 2
 		frame:Show()
 	end
 end
