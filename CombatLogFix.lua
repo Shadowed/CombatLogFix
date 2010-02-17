@@ -15,12 +15,14 @@ function LogFixer:CheckEvents()
 		frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 	else
 		frame:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
+		frame:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	end
 	
 	if( CombatLogFixDB.auto ) then
 		frame:RegisterEvent("UNIT_SPELLCAST_SENT")
 	else
 		frame:UnregisterEvent("UNIT_SPELLCAST_SENT")
+		frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
 		frame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 		frame:Hide()
 	end	
