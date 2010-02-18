@@ -1,5 +1,5 @@
 local LogFixer = select(2, ...)
-local frame, instanceType
+local frame, instanceType, lastEvent
 
 function LogFixer:ADDON_LOADED(event, addon)
 	if( addon ~= "CombatLogFix" ) then return end
@@ -19,9 +19,10 @@ function LogFixer:CheckEvents()
 	end
 	
 	if( CombatLogFixDB.auto ) then
-		frame:RegisterEvent("UNIT_SPELLCAST_SENT")
+		frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+		frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 	else
-		frame:UnregisterEvent("UNIT_SPELLCAST_SENT")
+		frame:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 		frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
 		frame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 		frame:Hide()
@@ -32,7 +33,6 @@ end
 function LogFixer:ZONE_CHANGED_NEW_AREA()
 	local type = select(2, IsInInstance())
 	if( instanceType and type ~= instanceType ) then
-		instanceType = type
 		CombatLogClearEntries()
 	end
 	
@@ -48,17 +48,23 @@ function LogFixer:PLAYER_REGEN_ENABLED()
 end
 
 -- When the cast is sent, we expect some sort of combat log event within the next 2
-function LogFixer:UNIT_SPELLCAST_SENT(event, unit)
-	if( unit == "player" ) then
-		frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-		frame.timeout = 2
+local playerSpells = setmetatable({}, {
+	__index = function(tbl, name)
+		local cost = select(4, GetSpellInfo(name))
+		rawset(tbl, name, not not (cost and cost > 0))
+		return rawget(tbl, name)
+	end
+})
+
+function LogFixer:UNIT_SPELLCAST_SUCCEEDED(event, unit, name, rank, castID)
+	if( unit == "player" and name and playerSpells[name] ) then
+		frame.timeout = 0.50
 		frame:Show()
 	end
 end
 
 function LogFixer:COMBAT_LOG_EVENT_UNFILTERED()
-	frame.timeout = nil
-	frame:Hide()
+	lastEvent = GetTime()
 end
 
 local function checkTimeout(self, elapsed)
@@ -66,6 +72,9 @@ local function checkTimeout(self, elapsed)
 	if( self.timeout > 0 ) then return end
 	self:Hide()
 	
+	-- If the last combat log event was within a second of the cast succeeding, we're fine
+	if( lastEvent and ( GetTime() - lastEvent ) <= 1 ) then return end
+
 	-- Try and narrow it down
 	if( CombatLogFixDB.report ) then
 		if( not throttleBreak or throttleBreak < GetTime() ) then
